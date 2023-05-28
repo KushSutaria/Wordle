@@ -1,0 +1,19 @@
+services:
+  container1:
+    image: kushsutaria/container1:latest
+    ports:
+      - "6000:6000"
+    volumes:
+      - .:/app/data
+
+  container2:
+    image: kushsutaria/container2:latest
+    ports:
+      - "9000:9000"
+    volumes:
+      - .:/app/data
+
+networks:
+  default:
+    external:
+      name: testmay28
