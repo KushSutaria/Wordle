@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+  labels:
+    app: container1
+    deployment: unique-label
+  annotations:
+    app.kubernetes.io/force-update: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: container1
+  template:
+    metadata:
+      labels:
+        app: container1
+    spec:
+      containers:
+        - name: container1
+          image: us-central1-docker.pkg.dev/dotted-rookery-390001/cont1-docker/cont1-image:latest
+          ports:
+            - containerPort: 6000
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: test-pv-storage
+              mountPath: "/kush_PV_dir"    
+      volumes:
+        - name: test-pv-storage
+          persistentVolumeClaim:
+            claimName: test-pv-claim    
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-pv-claim
+spec:
+  accessModes: 
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: container1
+  name: container1
+spec:
+  type: LoadBalancer
+  selector:
+    app: container1
+  ports:
+    - protocol: TCP
+      port: 6000
+      targetPort: 6000

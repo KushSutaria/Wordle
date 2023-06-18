@@ -1,0 +1,18 @@
+steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'auth'
+      - 'configure-docker'
+      - '--quiet'
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--no-cache', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/cont1-docker/cont1-image:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/${PROJECT_ID}/cont1-docker/cont1-image:latest']
+  - name: "gcr.io/cloud-builders/kubectl"
+    args: ["apply", "-f", "cont1_deployment.yaml"]
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=us-central1-a"
+      - "CLOUDSDK_CONTAINER_CLUSTER=cluster-1"
+
+images:
+  - us-central1-docker.pkg.dev/${PROJECT_ID}/cont1-docker/cont1-image:latest
