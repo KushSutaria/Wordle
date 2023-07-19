@@ -10,9 +10,18 @@ const Grid = () => {
   const [lastFocusedRow, setLastFocusedRow] = useState(0);
   const [lastFocusedColumn, setLastFocusedColumn] = useState(0);
 
+  // create a hashmap of the correct answer and the number of times each letter appears
+  const correct_answer_map = new Map();
+  for (let i = 0; i < correct_answer.length; i++) {
+    if (correct_answer_map.has(correct_answer[i])) {
+      correct_answer_map.set(correct_answer[i], correct_answer_map.get(correct_answer[i]) + 1);
+    }
+    else {
+      correct_answer_map.set(correct_answer[i], 1);
+    }
+  }
 
   const handleInput = (e, row, column) => {
-
     if (e.key >= 'a' && e.key <= 'z') {
       gridItemsRef.current[row][column].value = e.key;
       if (row !== rows - 1) {
@@ -27,27 +36,49 @@ const Grid = () => {
       if (row === rows - 1) {
         if (e.key === 'Enter' && (gridItemsRef.current[row][column].value !== "" && gridItemsRef.current[row][column].value.match(/[a-z]/i))
         ) {
+          const inputAnswerMap = new Map();
+
           const value = e.target.value;
           let string = "";
           for (let i = 0; i < rows; i++) {
             string += gridItemsRef.current[i][column].value;
+            inputAnswerMap.set(string[i], 0);
           }
+          console.log("inputAnswerMap: ", inputAnswerMap);
+          console.log("correct_answer_map: ", correct_answer_map);
           for (let i = 0; i < rows; i++) {
-            if (string[i] !== correct_answer[i]) {
-              if (correct_answer.includes(string[i])) {
+
+              if (string[i] === correct_answer[i]) {
+              gridItemsRef.current[i][column].classList.add("correct");
+              inputAnswerMap.set(string[i], inputAnswerMap.get(string[i]) + 1);
+
+              //change color of included letter to incorrect
+              for(let j = 0; j < i; j++) {
+                if(string[j]!==correct_answer[j] && string[j]===string[i] && gridItemsRef.current[j][column].classList.contains("included") && inputAnswerMap.get(string[i]) > correct_answer_map.get(string[i])) {
+                  gridItemsRef.current[j][column].classList.remove("included");
+                  gridItemsRef.current[j][column].classList.add("incorrect");
+                  break;
+                }
+              }
+            }
+            else if(string[i]!==correct_answer[i] && inputAnswerMap.get(string[i]) < correct_answer_map.get(string[i])) {
+              inputAnswerMap.set(string[i], inputAnswerMap.get(string[i]) + 1);
+
                 gridItemsRef.current[i][column].classList.add("included");
-              }
-              else {
-                gridItemsRef.current[i][column].classList.add("incorrect");
-              }
+
             }
 
-            else if (string[i] === correct_answer[i]) {
-              gridItemsRef.current[i][column].classList.add("correct");
+            else if (!correct_answer.includes(string[i]) || string[i] !== correct_answer[i]) {
+              inputAnswerMap.set(string[i], inputAnswerMap.get(string[i]) + 1);
+
+              gridItemsRef.current[i][column].classList.add("incorrect");
             }
+              console.log(string[i]);
+            console.log("inputAnswerMap: ", inputAnswerMap);
+
           }
-          console.log("string: ", string);
-          console.log("value: ", value);
+          //console.log("inputAnswerMap: ", inputAnswerMap);
+
           if (string === correct_answer) {
             alert("Correct answer!");
 
@@ -67,7 +98,8 @@ const Grid = () => {
             if (gridItemsRef.current[row][column].value !== "" && gridItemsRef.current[row][column].value.match(/[a-z]/i)) {
               // If it's the last column, move to the first row
               gridItemsRef.current[0][0].focus();
-              alert("You lost!\nCorrect answer: " + correct_answer);
+              if(string!==correct_answer)
+                alert("You lost!\nCorrect answer: " + correct_answer);
               for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < columns; j++) {
                   gridItemsRef.current[i][j].disabled = true;
@@ -154,14 +186,6 @@ const Grid = () => {
   }, [lastFocusedRow, lastFocusedColumn]);
 
 
-
-
-  const handleButtonClick = () => {
-    if (lastFocusedRow !== null && lastFocusedColumn !== null) {
-      gridItemsRef.current[lastFocusedRow][lastFocusedColumn].focus();
-    }
-  };
-
   const gridRows = [];
   for (let i = 0; i < rows; i++) {
     const gridItems = [];
@@ -183,7 +207,7 @@ const Grid = () => {
 
   return (
     <div>
-      <h1>Kush's Wordle Project because why not</h1>
+      <h1>Kush's Cloud Project</h1>
       <div className="grid">
         {gridRows}
       </div>
