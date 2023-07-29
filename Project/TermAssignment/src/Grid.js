@@ -1,9 +1,62 @@
 import React, { useEffect, useRef, useState } from 'react';
-import './Grid.css';
+import './css/Grid.css';
 import Keyboard from './Keyboard';
 import Icon from './Icon';
+import Stats from './Stats';
 const Grid = () => {
-  const answer = "guess";
+  let answer = "";
+  const fetchAnswer = () => {
+    if(!localStorage.getItem("word")){
+      fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchword',
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log('Success:', data);
+        answer = data.Word;
+        console.log(data.Word);
+        localStorage.setItem("word", data.Word);
+    }
+    )
+    .catch((error) => {
+        console.error('Error:', error);
+        alert('Something went wrong!')
+        }
+    );
+    }
+    else{
+      answer = localStorage.getItem("word");
+    }
+  }
+
+  if(!localStorage.getItem("word")){
+    fetchAnswer();
+  }
+  else{
+    answer = localStorage.getItem("word");
+    // call fetchAnswer every 10 seconds
+
+  }
+  const RemoveWord = () => {
+    localStorage.removeItem("word");
+    fetchAnswer();
+  }
+  //remove word from local storage after every 10 seconds
+  useEffect(() => {
+    // Set up the interval when the component mounts
+    const intervalId = setInterval(RemoveWord, 10000); // 10000 milliseconds = 10 seconds
+
+    // Clean up the interval when the component unmounts to avoid memory leaks
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []); // The empty dependency array ensures the effect is run only once on mount
+
+  
   let correct_answer=answer.toUpperCase();
   const rows = 5;
   const columns = 6;
@@ -110,6 +163,19 @@ const Grid = () => {
                 gridItemsRef.current[i][j].disabled = true;
               }
             }
+            let addition=column+1;
+            console.log("Guess"+addition)
+            fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/updateguess', {
+              method: 'POST',
+              body: JSON.stringify({
+                "email": localStorage.getItem("user"),
+                "guess": "Guess" + addition
+              })
+            })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.log(error));
+                    
           }
 
           // If it's the last row, move to the next column
@@ -144,7 +210,31 @@ const Grid = () => {
     }
   };
   
+  if(localStorage.getItem("user")) {
+    fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchstats', {
+      method: 'POST',
+      body: JSON.stringify({
+        "email": localStorage.getItem("user"),
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log(data);
 
+      if(data.body.solvedCurrent===true) {
+        alert("You've solved this puzzle before!")
+
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < columns; j++) {
+          gridItemsRef.current[i][j].disabled = true;
+        }
+      }
+    }
+  }
+    )
+    .catch(error => console.log(error));
+
+  }
   const handleTabKey = (e) => {
     e.preventDefault(); // Prevent default tab behavior
     // Focus on the next input element
@@ -248,14 +338,18 @@ const Grid = () => {
   return (
     <div>
       <Icon/>
-      <h1>Kush's Cloud Project</h1>
+      <h1 className='grid-h1'>Kush's Cloud Project</h1>
+      <Stats/>
+
       <div className="grid">
         {gridRows}
       </div>
       <Keyboard />
 
-      <a  href="https://icons8.com/icon/23265/user">User</a> icon by <a href="https://icons8.com">Icons8</a>
-          </div>
+      <a  href="https://icons8.com/icon/23265/user" style={{color:'white'}}>User icon by </a> 
+      <a href="https://icons8.com" style={{color:'white'}}>Icons8</a>
+      
+        </div>
   );
 };
 
