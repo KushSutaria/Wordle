@@ -1,0 +1,554 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: DynamoDB, SNS, SQS, Lambda, API Gateway, EC2
+Resources:
+  UserDataCF:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  WordDataCF:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: number
+          AttributeType: N
+      KeySchema:
+        - AttributeName: number
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  resetSolved:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Role: arn:aws:iam::497607277934:role/LabRole
+      Handler: lambda_function.lambda_handler
+      Code:
+        S3Bucket: lambda-functions-b00928066
+        S3Key: lambdaZips/resetSolved-e7c120e6-d883-4ba0-80d4-e8340adfe114.zip
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserDataCF
+          WORD_TABLE_NAME: !Ref WordDataCF
+
+  AddToDynamoDB:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Runtime: 'python3.11'
+      Role: 'arn:aws:iam::497607277934:role/LabRole'
+      Handler: 'lambda_function.lambda_handler'
+      Code:
+        S3Bucket: 'lambda-functions-b00928066'
+        S3Key: 'lambdaZips/AddToDynamoDB-c77a9a4e-0578-4032-9fed-7d05170ba890.zip'
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserDataCF
+  fetchNewWord:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Role: arn:aws:iam::497607277934:role/LabRole
+      Handler: lambda_function.lambda_handler
+      Code:
+        S3Bucket: lambda-functions-b00928066
+        S3Key: lambdaZips/fetchNewWord-d69fbab6-8f2e-48d3-b31a-ab9d0d773b28.zip
+      Environment:
+        Variables:
+          WORD_TABLE_NAME: !Ref WordDataCF
+  fetchStatsFromDB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Role: arn:aws:iam::497607277934:role/LabRole
+      Handler: lambda_function.lambda_handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserDataCF
+      Code:
+        S3Bucket: lambda-functions-b00928066
+        S3Key: lambdaZips/fetchStatsFromDB-6a452139-19f6-45fb-8a56-b3fe59a4cb93.zip
+      TracingConfig:
+        Mode: Active
+  fetchUserFromDynamoDB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Role: arn:aws:iam::497607277934:role/LabRole
+      Handler: lambda_function.lambda_handler
+      Code:
+        S3Bucket: lambda-functions-b00928066
+        S3Key: lambdaZips/fetchUserFromDynamoDB-132da28b-4a2e-40ad-b9cd-f9a55acf6525.zip
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserDataCF
+      TracingConfig:
+        Mode: Active
+  incrementCorrect:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Role: arn:aws:iam::497607277934:role/LabRole
+      Handler: lambda_function.lambda_handler
+      Code:
+        S3Bucket: lambda-functions-b00928066
+        S3Key: lambdaZips/incrementCorrect-2ae99410-2772-4dc9-a6ab-6028f4b6f734.zip
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserDataCF
+      TracingConfig:
+        Mode: Active
+  SNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      Subscription:
+        - Endpoint: !GetAtt SQSCF.Arn
+          Protocol: SQS
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: e856c748-b8c7-41bd-8e73-07a2553a8f51
+  SQSCF:
+    Type: 'AWS::SQS::Queue'
+    Properties: {}
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: f5212385-c2fb-4b89-b49e-9589af2cff65
+  SQSPolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: topic-subscription-allow
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: 'SQS:SendMessage'
+            Resource: !GetAtt SQSCF.Arn
+            Condition:
+              ArnLike:
+                'aws:SourceArn': !Ref SNSTopic
+      Queues:
+        - !Ref SQSCF
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 9b81a207-e775-4f00-94e2-e3dc454f5664
+  lambdaEventSourceMapping:
+   Type: 'AWS::Lambda::EventSourceMapping'
+   Properties:
+    BatchSize: 1
+    EventSourceArn: !GetAtt SQSCF.Arn
+    FunctionName: !Ref resetSolved
+
+  TermAssignment:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Name: TermAssignment
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2221a5a0-0eec-4cb1-9ffc-87c195a944a7
+
+  APIGatewayPermissionNewWord:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref fetchNewWord
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TermAssignment}/*/*"
+  APIGatewayPermissionAddToDB:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref AddToDynamoDB
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TermAssignment}/*/*"
+  fetchword:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TermAssignment
+      ParentId: !GetAtt TermAssignment.RootResourceId
+      PathPart: 'fetchword'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 5b2b8b0e-5b0a-4b0e-8b0a-9e0b0a0b0a0b
+
+  fetchStats:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TermAssignment
+      ParentId: !GetAtt TermAssignment.RootResourceId
+      PathPart: fetchStats
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: bd4a374b-db97-476c-9aa4-60c1aa2adbe3
+    DependsOn: 
+      - TermAssignment
+
+  fetchUser:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TermAssignment
+      ParentId: !GetAtt TermAssignment.RootResourceId
+      PathPart: fetchUser
+  createUser:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TermAssignment
+      ParentId: !GetAtt TermAssignment.RootResourceId
+      PathPart: createUser
+
+  AddToDynamoDBOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref fetchUser
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          ResponseModels:
+            application/json: Empty
+  AddToDynamoDBMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      ResourceId: !Ref createUser
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AddToDynamoDB.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseTemplates:
+              application/json: $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: $input.json('$')
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+
+  fetchWordOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      RestApiId: !Ref TermAssignment
+      ResourceId: !Ref fetchword
+      HttpMethod: OPTIONS
+      Integration:
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              "method.response.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE'"
+              "method.response.header.Access-Control-Allow-Origin": "'*'"
+            ResponseTemplates:
+              "application/json": ""
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          "application/json": '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            "method.response.header.Access-Control-Allow-Headers": true
+            "method.response.header.Access-Control-Allow-Methods": true
+            "method.response.header.Access-Control-Allow-Origin": true
+          ResponseModels:
+            "application/json": "Empty"
+  fetchNewWordMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      ResourceId: !Ref fetchword
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${fetchNewWord.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseTemplates:
+              application/json: $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: $input.json('$')
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2940cc41-2c0e-4e3c-901e-a83aa5501f2c
+  updateguess:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref TermAssignment
+      ParentId: !GetAtt TermAssignment.RootResourceId
+      PathPart: updateguess
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 5b2b8b0e-5b0a-4b0e-8b0a-9e0b0a0b0a0b
+    DependsOn:
+      - TermAssignment
+
+  fetchUserStatMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      ResourceId: !Ref fetchStats
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${fetchStatsFromDB.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseTemplates:
+              application/json: $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: $input.json('$')
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    DependsOn: 
+      - fetchStats
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2940cc41-2c0e-4e3c-901e-a83aa5501f2c
+  fetchUserFromDynamoDBMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      ResourceId: !Ref fetchUser
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${fetchUserFromDynamoDB.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseTemplates:
+              application/json: $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: $input.json('$')
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    DependsOn: 
+      - fetchUser
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2940cc41-2c0e-4e3c-901e-a83aa5501f2c
+  incrementCorrectMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      ResourceId: !Ref updateguess
+      RestApiId: !Ref TermAssignment
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${incrementCorrect.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseTemplates:
+              application/json: $input.json('$')
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: $input.json('$')
+      RequestParameters:
+        method.request.querystring.name: false
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    DependsOn: 
+      - updateguess
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2940cc41-2c0e-4e3c-901e-a83aa5501f2c
+
+  APIGatewayDeployment:
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      RestApiId: !Ref TermAssignment
+    DependsOn:
+      - fetchUserStatMethod
+      - fetchNewWordMethod
+      - fetchUserFromDynamoDBMethod
+      - incrementCorrectMethod
+      - AddToDynamoDBMethod
+  APIStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref TermAssignment
+      DeploymentId: !Ref APIGatewayDeployment
+      StageName: prod
+      Description: Production Stage
+  APIGatewayPermissionStats:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt fetchStatsFromDB.Arn
+      Principal: apigateway.amazonaws.com
+  
+  APIGatewayPermissionUserFromDynamoDB:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt fetchUserFromDynamoDB.Arn
+      Principal: apigateway.amazonaws.com
+  APIGatewayPermissionIncrementCorrect:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt incrementCorrect.Arn
+      Principal: apigateway.amazonaws.com
+  EC2Test:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: ami-0f34c5ae932e6f0e4
+      IamInstanceProfile: "LabInstanceProfile"
+      InstanceType: t2.medium
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+        - !Ref HTTPSSecurity
+        - !Ref HTTPSecurity
+        - !Ref CustomSecurity
+      KeyName: term-assignment
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            mkdir /home/ec2-user/test
+            cd /home/ec2-user/test
+            sudo yum update -y
+            sudo yum install npm -y
+            sudo yum install unzip -y
+            aws s3 cp s3://lambda-functions-b00928066/web-app/build.zip /home/ec2-user/test/build.zip
+            sudo unzip build.zip
+            sudo npm install
+            cd /home/ec2-user/test/build
+            echo 'REACT_APP_CREATE_USER_URL=https://${TermAssignment}.execute-api.${AWS::Region}.amazonaws.com/prod/createUser' >>.env
+            echo 'REACT_APP_UPDATE_GUESS_URL=https://${TermAssignment}.execute-api.${AWS::Region}.amazonaws.com/prod/updateguess' >>.env
+            echo 'REACT_APP_FETCH_STATS_URL=https://${TermAssignment}.execute-api.${AWS::Region}.amazonaws.com/prod/fetchStats' >>.env
+            echo 'REACT_APP_FETCH_NEW_WORD_URL=https://${TermAssignment}.execute-api.${AWS::Region}.amazonaws.com/prod/fetchword' >>.env
+            echo 'REACT_APP_FETCH_USER_URL=https://${TermAssignment}.execute-api.${AWS::Region}.amazonaws.com/prod/fetchUser' >>.env
+            npm start
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d5ab30f7-2010-48d4-9495-7304a78e20a6
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+  HTTPSSecurity:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTPS access via port 443
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  HTTPSecurity:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP access via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  CustomSecurity:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable Custom access via port 3000
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+  
+  EIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      InstanceId: !Ref EC2Test

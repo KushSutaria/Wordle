@@ -1,6 +1,8 @@
 import React from "react";
 import { useState } from "react";
 const Stats = () => {
+    const stats=process.env.REACT_APP_FETCH_STATS_URL;
+
     const [g1, setG1] = useState(0);
     const [g2, setG2] = useState(0);
     const [g3, setG3] = useState(0);
@@ -27,11 +29,8 @@ const Stats = () => {
             setG6(0);
         }
         else{
-        fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchstats', {
+        fetch(stats, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify(values),
             })
         .then((response) => response.json())

@@ -3,17 +3,21 @@ import './css/Grid.css';
 import Keyboard from './Keyboard';
 import Icon from './Icon';
 import Stats from './Stats';
+
 const Grid = () => {
   let answer = "";
+  const newWord=process.env.REACT_APP_FETCH_NEW_WORD_URL;
+  const updateGuess=process.env.REACT_APP_UPDATE_GUESS_URL;
+  const stat=process.env.REACT_APP_FETCH_STATS_URL;
+
   const fetchAnswer = () => {
     if(!localStorage.getItem("word")){
-      fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchword',
+      fetch(newWord,
       {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        })
+        method: 'POST'
+      }
+        
+        )
     .then((response) => response.json())
     .then((data) => {
       console.log('Success:', data);
@@ -24,7 +28,7 @@ const Grid = () => {
     )
     .catch((error) => {
         console.error('Error:', error);
-        alert('Something went wrong!')
+        //alert('Something went wrong!')
         }
     );
     }
@@ -42,19 +46,20 @@ const Grid = () => {
 
   }
   const RemoveWord = () => {
+    if(localStorage.getItem("word"))
     localStorage.removeItem("word");
     fetchAnswer();
   }
   //remove word from local storage after every 10 seconds
   useEffect(() => {
     // Set up the interval when the component mounts
-    const intervalId = setInterval(RemoveWord, 10000); // 10000 milliseconds = 10 seconds
+    const intervalId = setInterval(RemoveWord, 10000);
 
     // Clean up the interval when the component unmounts to avoid memory leaks
     return () => {
       clearInterval(intervalId);
     };
-  }, []); // The empty dependency array ensures the effect is run only once on mount
+  }, []);
 
   
   let correct_answer=answer.toUpperCase();
@@ -165,7 +170,7 @@ const Grid = () => {
             }
             let addition=column+1;
             console.log("Guess"+addition)
-            fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/updateguess', {
+            fetch(updateGuess, {
               method: 'POST',
               body: JSON.stringify({
                 "email": localStorage.getItem("user"),
@@ -175,7 +180,8 @@ const Grid = () => {
             .then(response => response.json())
             .then(data => console.log(data))
             .catch(error => console.log(error));
-                    
+                
+            Stats.fetchUserStats()
           }
 
           // If it's the last row, move to the next column
@@ -211,7 +217,7 @@ const Grid = () => {
   };
   
   if(localStorage.getItem("user")) {
-    fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchstats', {
+    fetch(stat, {
       method: 'POST',
       body: JSON.stringify({
         "email": localStorage.getItem("user"),
@@ -236,8 +242,7 @@ const Grid = () => {
 
   }
   const handleTabKey = (e) => {
-    e.preventDefault(); // Prevent default tab behavior
-    // Focus on the next input element
+    e.preventDefault(); 
     gridItemsRef.current[lastFocusedRow][lastFocusedColumn].focus();
   };
 
@@ -292,7 +297,6 @@ const Grid = () => {
       item.addEventListener('mousedown', handleMouseDown);
     });
 
-    // Add the 'Tab' key press event listener to the document
     const handleKeyDown = (e) => {
       e.preventDefault();
       if (e.key === 'Tab') {
@@ -331,7 +335,6 @@ const Grid = () => {
     }
     gridRows.push(<div className="row" key={i}>{gridItems}</div>);
 
-    //change keyboard key color based on correctness
     
   }
 

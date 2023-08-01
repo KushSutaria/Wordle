@@ -31,11 +31,10 @@ const navigate = useNavigate();
         null
     );
     */
-   fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/fetchuser', {
+   const user = process.env.REACT_APP_FETCH_USER_URL;
+    console.log(user);
+   fetch(user, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(values),
     })
     .then((response) => response.json())

@@ -4,9 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import * as Yup from 'yup';
 import './css/Register.css'
 import './css/Login.css'
+
 //import UserPool from './UserPool';
-
-
 const Register = () => {
 
 const navigate = useNavigate();
@@ -31,11 +30,10 @@ const navigate = useNavigate();
         null
     );
     */
-   fetch('https://8nj236yhkd.execute-api.us-east-1.amazonaws.com/prod/createuser', {
+   const user = process.env.REACT_APP_CREATE_USER_URL;
+    console.log(user);
+   fetch(user, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(values),
     })
     .then((response) => response.json())
