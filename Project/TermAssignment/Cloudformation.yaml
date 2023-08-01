@@ -29,10 +29,10 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.11
-      Role: arn:aws:iam::497607277934:role/LabRole
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: lambda_function.lambda_handler
       Code:
-        S3Bucket: lambda-functions-b00928066
+        S3Bucket: term-assignment-b00928066
         S3Key: lambdaZips/resetSolved-e7c120e6-d883-4ba0-80d4-e8340adfe114.zip
       Environment:
         Variables:
@@ -43,10 +43,10 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Runtime: 'python3.11'
-      Role: 'arn:aws:iam::497607277934:role/LabRole'
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: 'lambda_function.lambda_handler'
       Code:
-        S3Bucket: 'lambda-functions-b00928066'
+        S3Bucket: 'term-assignment-b00928066'
         S3Key: 'lambdaZips/AddToDynamoDB-c77a9a4e-0578-4032-9fed-7d05170ba890.zip'
       Environment:
         Variables:
@@ -55,10 +55,10 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.11
-      Role: arn:aws:iam::497607277934:role/LabRole
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: lambda_function.lambda_handler
       Code:
-        S3Bucket: lambda-functions-b00928066
+        S3Bucket: term-assignment-b00928066
         S3Key: lambdaZips/fetchNewWord-d69fbab6-8f2e-48d3-b31a-ab9d0d773b28.zip
       Environment:
         Variables:
@@ -67,13 +67,13 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.11
-      Role: arn:aws:iam::497607277934:role/LabRole
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: lambda_function.lambda_handler
       Environment:
         Variables:
           TABLE_NAME: !Ref UserDataCF
       Code:
-        S3Bucket: lambda-functions-b00928066
+        S3Bucket: term-assignment-b00928066
         S3Key: lambdaZips/fetchStatsFromDB-6a452139-19f6-45fb-8a56-b3fe59a4cb93.zip
       TracingConfig:
         Mode: Active
@@ -81,10 +81,10 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.11
-      Role: arn:aws:iam::497607277934:role/LabRole
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: lambda_function.lambda_handler
       Code:
-        S3Bucket: lambda-functions-b00928066
+        S3Bucket: term-assignment-b00928066
         S3Key: lambdaZips/fetchUserFromDynamoDB-132da28b-4a2e-40ad-b9cd-f9a55acf6525.zip
       Environment:
         Variables:
@@ -95,10 +95,10 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.11
-      Role: arn:aws:iam::497607277934:role/LabRole
+      Role: arn:aws:iam::838223314331:role/LabRole
       Handler: lambda_function.lambda_handler
       Code:
-        S3Bucket: lambda-functions-b00928066
+        S3Bucket: term-assignment-b00928066
         S3Key: lambdaZips/incrementCorrect-2ae99410-2772-4dc9-a6ab-6028f4b6f734.zip
       Environment:
         Variables:
@@ -498,7 +498,7 @@ Resources:
             sudo yum update -y
             sudo yum install npm -y
             sudo yum install unzip -y
-            aws s3 cp s3://lambda-functions-b00928066/web-app/build.zip /home/ec2-user/test/build.zip
+            aws s3 cp s3://term-assignment-b00928066/web-app/build.zip /home/ec2-user/test/build.zip
             sudo unzip build.zip
             sudo npm install
             cd /home/ec2-user/test/build
